@@ -17,6 +17,21 @@ const timeFormat = new Intl.DateTimeFormat(undefined, {
   second: '2-digit'
 })
 
+/** Opens the native widget menu: pin to desktop, start with Windows, quit. */
+function MenuButton() {
+  return (
+    <button
+      type="button"
+      className="app-button app-button-icon"
+      aria-label="Widget menu"
+      title="Widget menu"
+      onClick={() => window.pihole.showMenu()}
+    >
+      <span aria-hidden="true">⋯</span>
+    </button>
+  )
+}
+
 export function App() {
   const [load, setLoad] = useState<LoadState>({ kind: 'loading' })
   const [showSettings, setShowSettings] = useState(false)
@@ -53,7 +68,7 @@ export function App() {
 
   if (load.kind === 'loading') {
     return (
-      <div className="app-centered" role="status">
+      <div className="app-centered app-drag" role="status">
         <span className="app-spinner" aria-hidden="true" />
         <span>Starting…</span>
       </div>
@@ -62,7 +77,7 @@ export function App() {
 
   if (settings === null) {
     return (
-      <div className="app-centered">
+      <div className="app-centered app-drag">
         <span>The app settings could not be loaded.</span>
         <button type="button" className="app-button" onClick={loadSettings}>
           Try again
@@ -74,6 +89,10 @@ export function App() {
   if (onSettingsScreen) {
     return (
       <div className="app-shell">
+        {/* The window has no title bar, so this strip is what it is moved by. */}
+        <div className="app-dragbar app-drag">
+          <MenuButton />
+        </div>
         <SettingsScreen
           settings={settings}
           firstRun={!configured}
@@ -90,16 +109,13 @@ export function App() {
 
   return (
     <div className="app-shell">
-      <header className="app-header">
+      <header className="app-header app-drag">
         <div className="app-header-title">
           <h1>Pi-hole Dashboard</h1>
-          <span className="app-header-address" title={settings.baseUrl}>
-            {settings.baseUrl}
+          <span className="app-header-sub" title={settings.baseUrl} aria-live="off">
+            {data ? `Updated ${timeFormat.format(data.fetchedAt)}` : 'Not updated yet'} · {settings.baseUrl}
           </span>
         </div>
-        <span className="app-header-updated" aria-live="off">
-          {data ? `Updated ${timeFormat.format(data.fetchedAt)}` : 'Not updated yet'}
-        </span>
         <div className="app-header-actions">
           <button type="button" className="app-button" onClick={refresh} disabled={refreshing}>
             {refreshing && <span className="app-spinner" aria-hidden="true" />}
@@ -108,6 +124,7 @@ export function App() {
           <button type="button" className="app-button" onClick={() => setShowSettings(true)}>
             Settings
           </button>
+          <MenuButton />
         </div>
       </header>
 

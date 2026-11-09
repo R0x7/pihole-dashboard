@@ -120,7 +120,8 @@ export const IPC = {
   getSettings: 'settings:get',
   saveSettings: 'settings:save',
   testConnection: 'pihole:test',
-  getDashboard: 'pihole:dashboard'
+  getDashboard: 'pihole:dashboard',
+  showMenu: 'widget:menu'
 } as const
 
 /** Exposed to the renderer as `window.pihole` by the preload script. */
@@ -136,6 +137,8 @@ export interface RendererApi {
    */
   testConnection(input?: SaveSettingsInput): Promise<Result<ConnectionInfo>>
   getDashboard(): Promise<Result<DashboardData>>
+  /** Pop up the widget menu (pin to desktop, start with Windows, quit) at the pointer. */
+  showMenu(): void
 }
 
 // ---------- Main-process Pi-hole client ----------

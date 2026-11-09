@@ -7,13 +7,35 @@
   min-width: 0;
 }
 
+/*
+ * The window is a frameless desktop widget: these regions are what it is
+ * dragged by. Controls inside them must stay clickable.
+ */
+.app-drag {
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+.app-drag button,
+.app-drag a,
+.app-drag input {
+  -webkit-app-region: no-drag;
+}
+
+.app-dragbar {
+  display: flex;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+  padding: 8px 14px 0;
+}
+
 /* ---------- Header ---------- */
 
 .app-header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 10px 20px;
+  gap: 12px;
+  padding: 10px 14px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   flex: 0 0 auto;
@@ -33,18 +55,16 @@
   letter-spacing: -0.01em;
 }
 
-.app-header-address {
-  color: var(--text-muted);
-  font-size: 12px;
+.app-header-title h1,
+.app-header-sub {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.app-header-updated {
+.app-header-sub {
   color: var(--text-muted);
   font-size: 12px;
-  white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
@@ -103,13 +123,20 @@
   background: transparent;
 }
 
+.app-button-icon {
+  min-width: 32px;
+  padding: 5px 8px;
+  font-size: 16px;
+  line-height: 1;
+}
+
 /* ---------- Main area ---------- */
 
 .app-main {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  padding: 16px 20px 24px;
+  padding: 14px 14px 20px;
 }
 
 .app-banner {
@@ -227,7 +254,7 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  padding: 24px 20px;
+  padding: 12px 14px 20px;
 }
 
 .app-settings {
@@ -336,15 +363,6 @@
 }
 
 @media (max-width: 900px) {
-  .app-header {
-    gap: 10px;
-    padding: 8px 14px;
-  }
-
-  .app-main {
-    padding: 12px 14px 20px;
-  }
-
   .app-skeleton {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;

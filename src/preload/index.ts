@@ -5,7 +5,8 @@ const api: RendererApi = {
   getSettings: () => ipcRenderer.invoke(IPC.getSettings),
   saveSettings: (input) => ipcRenderer.invoke(IPC.saveSettings, input),
   testConnection: (input) => ipcRenderer.invoke(IPC.testConnection, input),
-  getDashboard: () => ipcRenderer.invoke(IPC.getDashboard)
+  getDashboard: () => ipcRenderer.invoke(IPC.getDashboard),
+  showMenu: () => ipcRenderer.send(IPC.showMenu)
 }
 
 contextBridge.exposeInMainWorld('pihole', api)

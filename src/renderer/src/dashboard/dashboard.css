@@ -89,7 +89,8 @@
 
 @media (max-width: 700px) {
   .dash-tiles {
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    /* Wide enough for the longest label ("Domains on blocklists"). */
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   }
 }
 
