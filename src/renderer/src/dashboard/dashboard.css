@@ -1,0 +1,375 @@
+/*
+ * Dashboard views. Colours come from the app-wide variables (--bg, --surface,
+ * --border, --text, --text-muted, --accent, --ok, --blocked, --radius); the
+ * fallbacks only apply if the app shell has not defined them.
+ */
+
+.dash {
+  /* Categorical palette for per-client series, in fixed order (never cycled). */
+  --dash-series-1: #2a78d6;
+  --dash-series-2: #eb6834;
+  --dash-series-3: #1baf7a;
+  --dash-series-4: #eda100;
+  --dash-series-5: #e87ba4;
+  --dash-series-6: #008300;
+  --dash-series-7: #6250d6;
+  --dash-series-other: #898781;
+
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  color: var(--text, #1c1c1a);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* The same hues stepped for a dark surface: OS setting, or an explicit theme stamp. */
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme='light'])) .dash {
+    --dash-series-1: #3987e5;
+    --dash-series-2: #d95926;
+    --dash-series-3: #199e70;
+    --dash-series-4: #c98500;
+    --dash-series-5: #d55181;
+    --dash-series-6: #008300;
+    --dash-series-7: #9085e9;
+    --dash-series-other: #898781;
+  }
+}
+:root[data-theme='dark'] .dash,
+:root.dark .dash {
+  --dash-series-1: #3987e5;
+  --dash-series-2: #d95926;
+  --dash-series-3: #199e70;
+  --dash-series-4: #c98500;
+  --dash-series-5: #d55181;
+  --dash-series-6: #008300;
+  --dash-series-7: #9085e9;
+  --dash-series-other: #898781;
+}
+
+/* ---------- Status ---------- */
+
+.dash-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 3px 10px 3px 8px;
+  border: 1px solid var(--border, #e1e0d9);
+  border-radius: 999px;
+  background: var(--surface, #fff);
+  color: var(--text, #1c1c1a);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.dash-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  background: var(--ok, #1a9f53);
+}
+
+/* Disabled is a hollow ring, so the state is not carried by colour alone. */
+.dash-status[data-enabled='false'] .dash-status-dot {
+  background: transparent;
+  border: 2px solid var(--blocked, #d03b3b);
+}
+
+/* ---------- Tiles ---------- */
+
+.dash-tiles {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 700px) {
+  .dash-tiles {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  }
+}
+
+.dash-tile {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #e1e0d9);
+  border-radius: var(--radius, 8px);
+  background: var(--surface, #fff);
+}
+
+.dash-tile-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted, #6b6a66);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-tile-swatch {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.dash-tile-value {
+  margin-top: 2px;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Panels ---------- */
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 1000px) {
+  .dash-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.dash-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--border, #e1e0d9);
+  border-radius: var(--radius, 8px);
+  background: var(--surface, #fff);
+}
+
+.dash-panel-wide {
+  grid-column: 1 / -1;
+}
+
+.dash-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.dash-panel-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.dash-panel-sub {
+  margin-left: 8px;
+  color: var(--text-muted, #6b6a66);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.dash-empty {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  padding: 12px;
+  color: var(--text-muted, #6b6a66);
+  text-align: center;
+}
+
+/* ---------- Segmented toggle ---------- */
+
+.dash-toggle {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--border, #e1e0d9);
+  border-radius: 999px;
+  background: var(--bg, #f5f5f3);
+}
+
+.dash-toggle button {
+  padding: 2px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted, #6b6a66);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.dash-toggle button[aria-pressed='true'] {
+  background: var(--surface, #fff);
+  color: var(--text, #1c1c1a);
+  font-weight: 600;
+  box-shadow: 0 0 0 1px var(--border, #e1e0d9);
+}
+
+.dash-toggle button:focus-visible {
+  outline: 2px solid var(--accent, #2a78d6);
+  outline-offset: 1px;
+}
+
+/* ---------- Charts ---------- */
+
+.dash-chart {
+  width: 100%;
+  height: 230px;
+  min-width: 0;
+}
+
+/* Recharts draws a focus rectangle on click; the tooltip already shows the selection. */
+.dash-chart .recharts-surface:focus,
+.dash-chart .recharts-wrapper:focus {
+  outline: none;
+}
+
+.dash-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+  color: var(--text-muted, #6b6a66);
+  font-size: 12px;
+}
+
+.dash-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.dash-swatch {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.dash-tooltip {
+  max-width: 280px;
+  padding: 8px 10px;
+  border: 1px solid var(--border, #e1e0d9);
+  border-radius: var(--radius, 8px);
+  background: var(--surface, #fff);
+  color: var(--text, #1c1c1a);
+  font-size: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+
+.dash-tooltip-title {
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.dash-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.dash-tooltip-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-muted, #6b6a66);
+}
+
+.dash-tooltip-value {
+  margin-left: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.dash-tooltip-foot {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border, #e1e0d9);
+}
+
+/* ---------- Ranked bars ---------- */
+
+.dash-rank {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dash-rank-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 10px;
+  align-items: baseline;
+  padding: 1px 4px;
+  margin: 0 -4px;
+  border-radius: 4px;
+}
+
+.dash-rank-row:hover {
+  background: var(--bg, #f5f5f3);
+}
+
+.dash-rank-label {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-rank-num {
+  display: inline-block;
+  min-width: 1.6em;
+  color: var(--text-muted, #6b6a66);
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-rank-detail {
+  margin-left: 8px;
+  color: var(--text-muted, #6b6a66);
+  font-size: 12px;
+}
+
+.dash-rank-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.dash-rank-share {
+  margin-left: 6px;
+  color: var(--text-muted, #6b6a66);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.dash-rank-track {
+  grid-column: 1 / -1;
+  height: 6px;
+}
+
+.dash-rank-fill {
+  height: 100%;
+  min-width: 2px;
+  border-radius: 0 4px 4px 0;
+}

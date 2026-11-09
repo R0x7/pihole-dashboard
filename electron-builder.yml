@@ -1,0 +1,15 @@
+appId: com.hunter.pihole-dashboard
+productName: Pi-hole Dashboard
+directories:
+  output: dist
+files:
+  - out/**
+  - package.json
+win:
+  target:
+    - target: nsis
+      arch: x64
+nsis:
+  oneClick: true
+  perMachine: false
+  artifactName: pihole-dashboard-setup-${version}.${ext}

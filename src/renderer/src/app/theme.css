@@ -1,0 +1,73 @@
+/* App-wide theme. The dashboard components rely on these variable names. */
+:root {
+  color-scheme: light dark;
+
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --border: #d9dde3;
+  --text: #1c2128;
+  --text-muted: #5f6b7a;
+  --accent: #2563c9;
+  --ok: #1f9d55;
+  --blocked: #d64545;
+  --radius: 10px;
+
+  /* Shell-only extras. */
+  --app-accent-text: #ffffff;
+  --app-blocked-soft: rgba(214, 69, 69, 0.1);
+  --app-ok-soft: rgba(31, 157, 85, 0.12);
+
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI Variable Text',
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12151a;
+    --surface: #1b2027;
+    --border: #2c333d;
+    --text: #e6e9ee;
+    --text-muted: #9aa5b4;
+    --accent: #5b9bff;
+    --ok: #3fbf78;
+    --blocked: #f06a6a;
+
+    --app-accent-text: #0c1320;
+    --app-blocked-soft: rgba(240, 106, 106, 0.14);
+    --app-ok-soft: rgba(63, 191, 120, 0.14);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}

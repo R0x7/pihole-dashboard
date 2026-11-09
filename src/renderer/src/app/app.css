@@ -1,0 +1,352 @@
+/* Shell layout: header, banners, settings screen. All classes are app- prefixed. */
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+}
+
+/* ---------- Header ---------- */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+.app-header-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.app-header-title h1 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.app-header-address {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-header-updated {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.app-header-actions {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+/* ---------- Buttons ---------- */
+
+.app-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 5px 14px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 4px);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 550;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.app-button:hover:not(:disabled) {
+  border-color: var(--text-muted);
+}
+
+.app-button:focus-visible,
+.app-input:focus-visible,
+.app-checkbox input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.app-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.app-button-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--app-accent-text);
+}
+
+.app-button-primary:hover:not(:disabled) {
+  border-color: var(--accent);
+  filter: brightness(1.08);
+}
+
+.app-button-quiet {
+  background: transparent;
+}
+
+/* ---------- Main area ---------- */
+
+.app-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 20px 24px;
+}
+
+.app-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--blocked);
+  border-radius: var(--radius);
+  background: var(--app-blocked-soft);
+}
+
+.app-banner-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.app-banner-title {
+  font-weight: 650;
+}
+
+.app-banner-message {
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.app-banner-actions {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+/* ---------- First-load skeleton ---------- */
+
+.app-skeleton {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.app-skeleton-block {
+  height: 92px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  animation: app-pulse 1.4s ease-in-out infinite;
+}
+
+.app-skeleton-wide {
+  grid-column: 1 / -1;
+  height: 260px;
+}
+
+.app-skeleton-half {
+  grid-column: span 2;
+  height: 200px;
+}
+
+@keyframes app-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.app-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: app-spin 0.8s linear infinite;
+}
+
+@keyframes app-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-skeleton-block,
+  .app-spinner {
+    animation: none;
+  }
+}
+
+.app-centered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+  color: var(--text-muted);
+}
+
+.app-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- Settings screen ---------- */
+
+.app-settings-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 24px 20px;
+}
+
+.app-settings {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.app-settings h1 {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.app-settings-intro {
+  margin: 0 0 20px;
+  color: var(--text-muted);
+}
+
+.app-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 16px;
+}
+
+.app-field label,
+.app-field-label {
+  font-weight: 600;
+}
+
+.app-input {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 4px);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.app-input::placeholder {
+  color: var(--text-muted);
+}
+
+.app-input-narrow {
+  width: 120px;
+}
+
+.app-hint {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.app-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+
+.app-checkbox input {
+  margin: 3px 0 0;
+  accent-color: var(--accent);
+}
+
+.app-test-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 20px;
+  min-height: 34px;
+}
+
+.app-status {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: calc(var(--radius) - 4px);
+  overflow-wrap: anywhere;
+}
+
+.app-status-ok {
+  background: var(--app-ok-soft);
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.app-status-error {
+  background: var(--app-blocked-soft);
+  color: var(--blocked);
+  font-weight: 600;
+}
+
+.app-settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 900px) {
+  .app-header {
+    gap: 10px;
+    padding: 8px 14px;
+  }
+
+  .app-main {
+    padding: 12px 14px 20px;
+  }
+
+  .app-skeleton {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
