@@ -114,6 +114,11 @@ function mapTransportError(err: unknown): PiholeError {
     case 'HPE_INVALID_VERSION':
     case 'HPE_INVALID_HEADER_TOKEN':
       return new PiholeError('bad_response', NOT_V6_MESSAGE)
+    case 'ERR_RESPONSE_TOO_LARGE':
+      return new PiholeError(
+        'bad_response',
+        'The Pi-hole sent an unexpectedly large response. Pi-hole v6 or newer is required.'
+      )
     default:
       return new PiholeError('unknown', 'An unexpected error occurred while contacting the Pi-hole.')
   }
@@ -158,6 +163,8 @@ export class PiholeClient implements PiholeClientApi {
   readonly connection: PiholeConnection
   private session: Session | null = null
   private loginInFlight: Promise<Session> | null = null
+  /** Set by logout(): the client never logs in or stores a session again. */
+  private closed = false
 
   constructor(connection: PiholeConnection) {
     this.connection = connection
@@ -211,13 +218,15 @@ export class PiholeClient implements PiholeClientApi {
   }
 
   async logout(): Promise<void> {
+    // Closing first stops in-flight calls from logging in again on their next 401.
+    this.closed = true
     try {
       const pending = this.loginInFlight
       let session = this.session
       this.session = null
       if (pending) {
+        // A login that completes after close is not stored; release its session here.
         session = await pending.catch(() => null)
-        if (this.session === session) this.session = null
       }
       if (!session?.sid) return
       await this.send('DELETE', '/auth', { sid: session.sid })
@@ -229,11 +238,13 @@ export class PiholeClient implements PiholeClientApi {
   // ---------- session ----------
 
   private ensureSession(): Promise<Session> {
+    if (this.closed) return Promise.reject(clientClosed())
     if (this.session) return Promise.resolve(this.session)
     if (!this.loginInFlight) {
       const attempt = this.login()
         .then((session) => {
-          this.session = session
+          // logout() ran meanwhile: it deletes this session, so don't keep it.
+          if (!this.closed) this.session = session
           return session
         })
         .finally(() => {
@@ -241,7 +252,10 @@ export class PiholeClient implements PiholeClientApi {
         })
       this.loginInFlight = attempt
     }
-    return this.loginInFlight
+    return this.loginInFlight.then((session) => {
+      if (this.closed) throw clientClosed()
+      return session
+    })
   }
 
   private async login(): Promise<Session> {
@@ -343,6 +357,13 @@ export class PiholeClient implements PiholeClientApi {
       throw mapTransportError(err)
     }
   }
+}
+
+function clientClosed(): PiholeError {
+  return new PiholeError(
+    'unreachable',
+    'The connection to the Pi-hole was closed. Try again in a moment.'
+  )
 }
 
 function rateLimited(): PiholeError {

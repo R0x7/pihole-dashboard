@@ -27,7 +27,17 @@ export class RequestTimeoutError extends Error {
   }
 }
 
-const MAX_BODY_BYTES = 32 * 1024 * 1024
+/** Thrown (as a rejection) when a response body exceeds MAX_BODY_BYTES. */
+export class ResponseTooLargeError extends Error {
+  readonly code = 'ERR_RESPONSE_TOO_LARGE'
+  constructor() {
+    super('Response too large')
+    this.name = 'ResponseTooLargeError'
+  }
+}
+
+/** Far above any real Pi-hole API response; several requests run in parallel. */
+export const MAX_BODY_BYTES = 2 * 1024 * 1024
 
 /**
  * Perform one request. Resolves for any HTTP status; rejects with the raw
@@ -75,7 +85,9 @@ export function httpRequest(options: HttpRequestOptions): Promise<HttpResponse> 
       res.on('data', (chunk: Buffer) => {
         size += chunk.length
         if (size > MAX_BODY_BYTES) {
-          req.destroy(new Error('Response too large'))
+          const err = new ResponseTooLargeError()
+          finish(() => reject(err))
+          req.destroy(err)
           return
         }
         chunks.push(chunk)

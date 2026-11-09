@@ -128,6 +128,34 @@ export function toPublicSettings(stored: StoredSettings): Settings {
   }
 }
 
+function originOf(baseUrl: string): string | null {
+  const normalized = normalizeBaseUrl(baseUrl)
+  if (!normalized.ok) return null
+  return new URL(normalized.data).origin
+}
+
+/**
+ * Whether the stored password may be sent to `next` without being re-entered.
+ * It is bound to the origin (scheme + host + port) it was saved for, and is
+ * not reused when certificate checking is being switched off.
+ */
+export function canReuseStoredPassword(
+  saved: { baseUrl: string; allowSelfSigned: boolean },
+  next: { baseUrl: string; allowSelfSigned: boolean }
+): boolean {
+  const savedOrigin = originOf(saved.baseUrl)
+  if (savedOrigin === null || savedOrigin !== originOf(next.baseUrl)) return false
+  return saved.allowSelfSigned || !next.allowSelfSigned
+}
+
+/** Error for a request that would reuse the stored password where it must not be. */
+export function reenterPasswordError<T>(): Result<T> {
+  return fail(
+    'auth_failed',
+    'The address or certificate setting changed, so the saved password was not used. Enter the password again.'
+  )
+}
+
 /** Runtime check for values arriving over IPC. */
 export function isSaveSettingsInput(value: unknown): value is SaveSettingsInput {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
@@ -145,6 +173,8 @@ export function isSaveSettingsInput(value: unknown): value is SaveSettingsInput 
 /**
  * Apply a save request to the current stored settings.
  * password: undefined keeps, "" clears, anything else is encrypted and replaces.
+ * Keeping is refused (see canReuseStoredPassword) when the address origin
+ * changes or self-signed certificates are newly allowed.
  */
 export function mergeSettings(
   current: StoredSettings,
@@ -155,6 +185,13 @@ export function mergeSettings(
   if (!url.ok) return url
 
   let encryptedPassword = current.encryptedPassword
+  if (
+    input.password === undefined &&
+    encryptedPassword !== null &&
+    !canReuseStoredPassword(current, { baseUrl: url.data, allowSelfSigned: input.allowSelfSigned })
+  ) {
+    return reenterPasswordError()
+  }
   if (input.password === '') {
     encryptedPassword = null
   } else if (input.password !== undefined) {

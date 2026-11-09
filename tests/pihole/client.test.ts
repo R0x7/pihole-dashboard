@@ -45,6 +45,14 @@ async function expectCode(promise: Promise<unknown>, code: AppErrorCode): Promis
   return err
 }
 
+async function waitFor(condition: () => boolean): Promise<void> {
+  const deadline = Date.now() + 2000
+  while (!condition()) {
+    if (Date.now() > deadline) throw new Error('Timed out waiting for the mock')
+    await new Promise((resolve) => setTimeout(resolve, 2))
+  }
+}
+
 function loginRequests(mock: MockPihole): number {
   return mock.stats.requests.filter((r) => r === 'POST /api/auth').length
 }
@@ -197,7 +205,7 @@ describe('session handling', () => {
     const mock = await mockPihole()
     const client = clientFor(mock)
 
-    await expect(client.logout()).resolves.toBeUndefined() // not logged in yet
+    await expect(clientFor(mock).logout()).resolves.toBeUndefined() // not logged in yet
     expect(mock.stats.requests).toHaveLength(0)
 
     await client.fetchDashboard()
@@ -209,13 +217,74 @@ describe('session handling', () => {
     await client.logout() // second call is a no-op
     expect(mock.stats.logouts).toBe(1)
 
-    // The client is still usable and logs in afresh.
-    await client.fetchDashboard()
-    expect(mock.stats.logins).toBe(2)
-
     // Logout against a dead server still resolves.
     await mock.close()
     await expect(client.logout()).resolves.toBeUndefined()
+  })
+
+  it('rejects calls after logout without logging in again', async () => {
+    const mock = await mockPihole()
+    const client = clientFor(mock)
+    await client.fetchDashboard()
+    await client.logout()
+    const requests = mock.stats.requests.length
+
+    await expectCode(client.fetchDashboard(), 'unreachable')
+    await expectCode(client.testConnection(), 'unreachable')
+    expect(mock.stats.requests).toHaveLength(requests)
+    expect(mock.stats.logins).toBe(1)
+    expect(mock.activeSessions()).toBe(0)
+
+    // Also for a client that never logged in.
+    const fresh = clientFor(mock)
+    await fresh.logout()
+    await expectCode(fresh.fetchDashboard(), 'unreachable')
+    expect(mock.stats.requests).toHaveLength(requests)
+  })
+
+  it('logout during an in-flight fetchDashboard leaves no session behind', async () => {
+    const mock = await mockPihole({ knobs: { dataDelayMs: 60 } })
+    const client = clientFor(mock)
+    const fetching = expectCode(client.fetchDashboard(), 'unreachable')
+    // Logged in and the data requests are waiting on the mock.
+    await waitFor(() => mock.stats.requests.includes('GET /api/stats/summary'))
+
+    await client.logout()
+    expect(mock.activeSessions()).toBe(0)
+
+    // The data requests now get a 401; that must not trigger a new login.
+    await fetching
+    expect(mock.stats.unauthorized).toBeGreaterThan(0)
+    expect(mock.stats.logins).toBe(1)
+    expect(loginRequests(mock)).toBe(1)
+    expect(mock.activeSessions()).toBe(0)
+  })
+
+  it('logout during an in-flight testConnection leaves no session behind', async () => {
+    const mock = await mockPihole({ knobs: { dataDelayMs: 60 } })
+    const client = clientFor(mock)
+    const testing = expectCode(client.testConnection(), 'unreachable')
+    await waitFor(() => mock.stats.requests.includes('GET /api/info/version'))
+    await client.logout()
+    await testing
+    expect(loginRequests(mock)).toBe(1)
+    expect(mock.activeSessions()).toBe(0)
+  })
+
+  it('logout during an in-flight login deletes the session it produces', async () => {
+    const mock = await mockPihole({ knobs: { loginDelayMs: 60 } })
+    const client = clientFor(mock)
+    const fetching = expectCode(client.fetchDashboard(), 'unreachable')
+    await waitFor(() => loginRequests(mock) === 1)
+    expect(mock.stats.logins).toBe(0) // the mock has not answered yet
+
+    await client.logout()
+    await fetching
+    expect(mock.stats.logins).toBe(1)
+    expect(mock.stats.logouts).toBe(1)
+    expect(mock.activeSessions()).toBe(0)
+    // Nothing but the login and its logout reached the Pi-hole.
+    expect(mock.stats.requests).toEqual(['POST /api/auth', 'DELETE /api/auth'])
   })
 
   it('logout with an already expired session does not throw', async () => {
@@ -302,6 +371,18 @@ describe('error mapping', () => {
   it('maps wrongly shaped JSON to bad_response', async () => {
     const mock = await mockPihole({ knobs: { mode: 'wrong-shape' } })
     await expectCode(clientFor(mock).fetchDashboard(), 'bad_response')
+  })
+
+  it('maps an oversized response to bad_response', async () => {
+    const mock = await mockPihole({ knobs: { padDataBytes: 3 * 1024 * 1024 } })
+    const err = await expectCode(clientFor(mock).fetchDashboard(), 'bad_response')
+    expect(err.message).toMatch(/large/)
+  })
+
+  it('accepts a response below the size limit', async () => {
+    const mock = await mockPihole({ knobs: { padDataBytes: 1024 * 1024 } })
+    const data = await clientFor(mock).fetchDashboard()
+    expect(data.history).toHaveLength(144)
   })
 
   it('maps a closed port to unreachable', async () => {

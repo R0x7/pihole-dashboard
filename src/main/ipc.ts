@@ -9,7 +9,13 @@ import {
   type Settings
 } from '@shared/contract'
 import { PiholeClient, PiholeError } from './pihole/client'
-import { isSaveSettingsInput, normalizeBaseUrl, type SettingsStore } from './settings'
+import {
+  canReuseStoredPassword,
+  isSaveSettingsInput,
+  normalizeBaseUrl,
+  reenterPasswordError,
+  type SettingsStore
+} from './settings'
 
 function toAppError(err: unknown): AppError {
   if (err instanceof PiholeError) return { code: err.code, message: err.message }
@@ -18,6 +24,7 @@ function toAppError(err: unknown): AppError {
 }
 
 const BAD_ARGS: AppError = { code: 'unknown', message: 'Invalid request.' }
+const SHUTTING_DOWN: AppError = { code: 'unknown', message: 'The app is closing.' }
 
 function sameConnection(a: PiholeConnection, b: PiholeConnection): boolean {
   return (
@@ -46,12 +53,15 @@ export interface IpcOptions {
 export function registerIpc(store: SettingsStore, options: IpcOptions = {}): IpcController {
   // One long-lived client so refreshes reuse a single Pi-hole API session.
   let active: { client: PiholeClient; connection: PiholeConnection } | null = null
+  // Once shutdown() has started, no handler creates a client or logs in.
+  let shuttingDown = false
 
   const trusted = (event: IpcMainInvokeEvent): boolean =>
     options.isTrustedSender ? options.isTrustedSender(event) : true
 
   /** Client for the saved settings, replacing (and logging out) a stale one. */
   function clientForSaved(): Result<PiholeClient> {
+    if (shuttingDown) return { ok: false, error: SHUTTING_DOWN }
     const connection = store.getConnection()
     if (!connection.ok) {
       dropActive()
@@ -106,10 +116,17 @@ export function registerIpc(store: SettingsStore, options: IpcOptions = {}): Ipc
       }
 
       if (!isSaveSettingsInput(input)) return { ok: false, error: BAD_ARGS }
+      if (shuttingDown) return { ok: false, error: SHUTTING_DOWN }
       const url = normalizeBaseUrl(input.baseUrl)
       if (!url.ok) return url
       let password = input.password
       if (password === undefined) {
+        // The stored password only ever goes to the Pi-hole it was saved for.
+        const saved = store.get()
+        const next = { baseUrl: url.data, allowSelfSigned: input.allowSelfSigned }
+        if (saved.hasPassword && !canReuseStoredPassword(saved, next)) {
+          return reenterPasswordError()
+        }
         const stored = store.getPassword()
         if (!stored.ok) return stored
         password = stored.data
@@ -142,6 +159,7 @@ export function registerIpc(store: SettingsStore, options: IpcOptions = {}): Ipc
 
   return {
     async shutdown(timeoutMs: number): Promise<void> {
+      shuttingDown = true
       if (!active) return
       const old = active.client
       active = null

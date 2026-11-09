@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { DEFAULT_REFRESH_SECONDS, MIN_REFRESH_SECONDS } from '@shared/contract'
 import {
+  canReuseStoredPassword,
   clampRefreshSeconds,
   isSaveSettingsInput,
   mergeSettings,
@@ -77,14 +78,81 @@ describe('clampRefreshSeconds', () => {
   })
 })
 
+describe('canReuseStoredPassword', () => {
+  const saved = { baseUrl: 'https://pi.hole:8443', allowSelfSigned: false }
+  const reuse = (baseUrl: string, allowSelfSigned = false, from = saved): boolean =>
+    canReuseStoredPassword(from, { baseUrl, allowSelfSigned })
+
+  it('allows the same origin', () => {
+    expect(reuse('https://pi.hole:8443')).toBe(true)
+    expect(reuse('  HTTPS://PI.HOLE:8443/  ')).toBe(true)
+    // Default ports are the same origin whether or not they are spelled out.
+    const plain = { baseUrl: 'http://pi.hole', allowSelfSigned: false }
+    expect(reuse('pi.hole:80', false, plain)).toBe(true)
+    expect(reuse('https://pi.hole:443', false, { ...plain, baseUrl: 'https://pi.hole' })).toBe(true)
+  })
+
+  it('allows path-only changes', () => {
+    expect(reuse('https://pi.hole:8443/admin')).toBe(true)
+    expect(reuse('https://pi.hole:8443/proxy/pihole')).toBe(true)
+  })
+
+  it('refuses a different host, port or scheme', () => {
+    expect(reuse('https://pi.hole.evil.example:8443')).toBe(false)
+    expect(reuse('https://192.168.1.2:8443')).toBe(false)
+    expect(reuse('https://pi.hole:8444')).toBe(false)
+    expect(reuse('https://pi.hole')).toBe(false)
+    expect(reuse('http://pi.hole:8443')).toBe(false)
+    expect(reuse('pi.hole:8443')).toBe(false) // http:// is assumed
+  })
+
+  it('refuses when self-signed certificates are newly allowed, but not the reverse', () => {
+    expect(reuse('https://pi.hole:8443', true)).toBe(false)
+    const lax = { ...saved, allowSelfSigned: true }
+    expect(reuse('https://pi.hole:8443', false, lax)).toBe(true)
+    expect(reuse('https://pi.hole:8443', true, lax)).toBe(true)
+    expect(reuse('https://other:8443', false, lax)).toBe(false)
+  })
+
+  it('refuses when either address is missing or invalid', () => {
+    expect(reuse('ftp://pi.hole')).toBe(false)
+    expect(reuse('')).toBe(false)
+    expect(reuse('http://pi.hole', false, { baseUrl: '', allowSelfSigned: false })).toBe(false)
+  })
+})
+
 describe('mergeSettings', () => {
   const cipher = fakeCipher()
-  const current = { ...DEFAULT_STORED, baseUrl: 'http://old', encryptedPassword: 'T0xE' }
+  const current = { ...DEFAULT_STORED, baseUrl: 'http://pi.hole', encryptedPassword: 'T0xE' }
 
   it('keeps the stored password when password is undefined', () => {
-    const r = mergeSettings(current, { ...base }, cipher)
+    const r = mergeSettings(current, { ...base, baseUrl: 'pi.hole/admin' }, cipher)
     expect(r.ok && r.data.encryptedPassword).toBe('T0xE')
     expect(r.ok && r.data.baseUrl).toBe('http://pi.hole')
+  })
+
+  it('refuses to keep the stored password for another origin or newly lax TLS', () => {
+    for (const change of [
+      { baseUrl: 'http://other.host' },
+      { baseUrl: 'http://pi.hole:8080' },
+      { baseUrl: 'https://pi.hole' },
+      { allowSelfSigned: true }
+    ]) {
+      const r = mergeSettings(current, { ...base, ...change }, cipher)
+      expect(r.ok, JSON.stringify(change)).toBe(false)
+      if (!r.ok) {
+        expect(r.error.code).toBe('auth_failed')
+        expect(r.error.message).toMatch(/password again/)
+      }
+      // An explicit password or an explicit clear is fine.
+      expect(mergeSettings(current, { ...base, ...change, password: 'new' }, cipher).ok).toBe(true)
+      expect(mergeSettings(current, { ...base, ...change, password: '' }, cipher).ok).toBe(true)
+    }
+  })
+
+  it('accepts an undefined password for a new address when none is stored', () => {
+    const r = mergeSettings({ ...current, encryptedPassword: null }, { ...base, baseUrl: 'http://x' }, cipher)
+    expect(r.ok && r.data.encryptedPassword).toBeNull()
   })
 
   it('clears the stored password when password is ""', () => {
@@ -206,8 +274,16 @@ describe('SettingsStore', () => {
       data: { baseUrl: 'http://pi.hole', password: 'first', allowSelfSigned: false }
     })
 
-    store.save({ ...base, allowSelfSigned: true })
+    expect(store.save({ ...base, refreshSeconds: 60 }).ok).toBe(true)
     expect(store.getPassword()).toEqual({ ok: true, data: 'first' })
+
+    // Changing the origin without re-entering the password saves nothing.
+    const moved = store.save({ ...base, baseUrl: 'http://elsewhere' })
+    expect(!moved.ok && moved.error.code).toBe('auth_failed')
+    expect(store.get().baseUrl).toBe('http://pi.hole')
+    expect(new SettingsStore(file, fakeCipher()).getConnection()).toMatchObject({
+      data: { baseUrl: 'http://pi.hole', password: 'first' }
+    })
 
     store.save({ ...base, password: 'second' })
     expect(new SettingsStore(file, fakeCipher()).getPassword()).toEqual({ ok: true, data: 'second' })

@@ -14,6 +14,16 @@ interface Props {
   onCancel: () => void
 }
 
+/** Origin of an address as typed, with http:// assumed like the main process does. */
+function originOf(address: string): string | null {
+  const text = address.trim()
+  try {
+    return new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(text) ? text : `http://${text}`).origin
+  } catch {
+    return null
+  }
+}
+
 type TestState =
   | { kind: 'idle' }
   | { kind: 'running' }
@@ -90,6 +100,14 @@ export function SettingsScreen({ settings, firstRun, onSaved, onCancel }: Props)
 
   const busy = saving || test.kind === 'running'
 
+  // The saved password is only reused for the same origin, and not when
+  // self-signed certificates are newly allowed (the main process enforces this).
+  const mustReenterPassword =
+    settings.hasPassword &&
+    !removePassword &&
+    (originOf(baseUrl) !== originOf(settings.baseUrl) ||
+      (allowSelfSigned && !settings.allowSelfSigned))
+
   return (
     <div className="app-settings-wrap">
       <form className="app-settings" onSubmit={(e) => void save(e)} noValidate>
@@ -131,9 +149,11 @@ export function SettingsScreen({ settings, firstRun, onSaved, onCancel }: Props)
             type="password"
             autoComplete="off"
             placeholder={
-              settings.hasPassword
-                ? 'A password is saved. Leave blank to keep it.'
-                : 'Leave blank if your Pi-hole has no password'
+              mustReenterPassword
+                ? 'Enter the password again'
+                : settings.hasPassword
+                  ? 'A password is saved. Leave blank to keep it.'
+                  : 'Leave blank if your Pi-hole has no password'
             }
             value={password}
             disabled={removePassword}
@@ -142,6 +162,12 @@ export function SettingsScreen({ settings, firstRun, onSaved, onCancel }: Props)
               edited()
             }}
           />
+          {mustReenterPassword && password === '' && (
+            <span className="app-hint">
+              The address or certificate setting changed, so the saved password will not be used.
+              Enter the password again.
+            </span>
+          )}
           <span className="app-hint">
             If two-factor authentication is turned on for your Pi-hole, create an app password in
             its web interface and use that here. The password is stored encrypted on this computer.

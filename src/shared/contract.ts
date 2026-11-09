@@ -129,7 +129,9 @@ export interface RendererApi {
   saveSettings(input: SaveSettingsInput): Promise<Result<Settings>>
   /**
    * Test a connection. With `input`, tests those values without saving them
-   * (an undefined password falls back to the stored one). Without it, tests
+   * (an undefined password falls back to the stored one, but only while the
+   * address origin is unchanged and self-signed is not newly allowed;
+   * otherwise it fails asking for the password again). Without it, tests
    * the saved settings.
    */
   testConnection(input?: SaveSettingsInput): Promise<Result<ConnectionInfo>>

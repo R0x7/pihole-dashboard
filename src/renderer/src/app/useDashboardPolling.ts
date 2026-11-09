@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AppError, DashboardData, Result } from '@shared/contract'
+import { nextPoll } from './pollingPolicy'
 
 export interface DashboardPolling {
   /** Last good snapshot; kept while later refreshes fail. */
@@ -8,7 +9,7 @@ export interface DashboardPolling {
   error: AppError | null
   /** A request is in flight. */
   refreshing: boolean
-  /** Refresh now (no-op while a request is already in flight). */
+  /** Refresh now (no-op while a request is already in flight). Restarts stopped polling. */
   refresh: () => void
 }
 
@@ -23,6 +24,10 @@ interface Options {
  * Fetches immediately, then every `refreshSeconds` after the previous request
  * settled. Requests never overlap, polling pauses while the window is hidden
  * and resumes with an immediate refresh when it becomes visible again.
+ *
+ * After a failure the next attempt is decided by nextPoll: transient errors
+ * back off, errors that need the user (wrong password, ...) stop automatic
+ * polling until refresh() is called or resetKey changes.
  */
 export function useDashboardPolling({ enabled, refreshSeconds, resetKey }: Options): DashboardPolling {
   const [data, setData] = useState<DashboardData | null>(null)
@@ -48,11 +53,16 @@ export function useDashboardPolling({ enabled, refreshSeconds, resetKey }: Optio
     let disposed = false
     let inFlight = false
     let timer: ReturnType<typeof setTimeout> | undefined
+    let failures = 0
+    // Automatic polling is off until a manual refresh succeeds.
+    let stopped = false
+    // Earliest time (ms) for the next automatic attempt.
+    let nextAt = 0
 
     const schedule = (): void => {
       clearTimeout(timer)
-      if (disposed || document.visibilityState !== 'visible') return
-      timer = setTimeout(run, Math.max(1, refreshSeconds) * 1000)
+      if (disposed || stopped || document.visibilityState !== 'visible') return
+      timer = setTimeout(run, Math.max(0, nextAt - Date.now()))
     }
 
     const run = (): void => {
@@ -81,16 +91,23 @@ export function useDashboardPolling({ enabled, refreshSeconds, resetKey }: Optio
         if (result.ok) {
           setData(result.data)
           setError(null)
+          failures = 0
         } else {
           setError(result.error)
+          failures += 1
         }
+        const next = nextPoll(result.ok ? null : result.error.code, refreshSeconds, failures)
+        stopped = next.kind === 'stop'
+        if (next.kind === 'wait') nextAt = Date.now() + next.delayMs
         schedule()
       })
     }
 
     const onVisibility = (): void => {
-      if (document.visibilityState === 'visible') run()
-      else clearTimeout(timer)
+      if (document.visibilityState !== 'visible') clearTimeout(timer)
+      // While failing, becoming visible keeps the stop / the remaining back-off.
+      else if (failures > 0) schedule()
+      else run()
     }
 
     runRef.current = run

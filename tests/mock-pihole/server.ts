@@ -31,6 +31,10 @@ export interface MockKnobs {
   maxSessions: number
   /** Artificial delay before answering a login, in ms. */
   loginDelayMs: number
+  /** Artificial delay before answering (and auth-checking) a data request, in ms. */
+  dataDelayMs: number
+  /** Pad every data response with this many extra bytes. */
+  padDataBytes: number
   /** DNS blocking state reported by /api/dns/blocking. */
   blocking: 'enabled' | 'disabled'
 }
@@ -377,6 +381,8 @@ export function startMockPihole(options: MockPiholeOptions = {}): Promise<MockPi
     failVersion: false,
     maxSessions: 16,
     loginDelayMs: 0,
+    dataDelayMs: 0,
+    padDataBytes: 0,
     blocking: 'enabled',
     ...options.knobs
   }
@@ -522,6 +528,19 @@ export function startMockPihole(options: MockPiholeOptions = {}): Promise<MockPi
       return
     }
 
+    if (knobs.dataDelayMs > 0) {
+      setTimeout(() => handleData(req, res, url, method), knobs.dataDelayMs)
+    } else {
+      handleData(req, res, url, method)
+    }
+  }
+
+  const handleData = (
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+    url: URL,
+    method: string
+  ): void => {
     if (!isAuthed(req, url)) {
       stats.unauthorized++
       sendJson(res, 401, errorBody('unauthorized', 'Unauthorized'))
@@ -542,6 +561,10 @@ export function startMockPihole(options: MockPiholeOptions = {}): Promise<MockPi
     const result = dataResponse(url, knobs)
     if (!result) {
       sendJson(res, 404, errorBody('not_found', 'Not found', url.pathname))
+      return
+    }
+    if (knobs.padDataBytes > 0 && typeof result.body === 'object' && result.body !== null) {
+      sendJson(res, result.status, { ...result.body, padding: 'x'.repeat(knobs.padDataBytes) })
       return
     }
     sendJson(res, result.status, result.body)

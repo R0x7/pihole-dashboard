@@ -16,6 +16,8 @@ export class ShapeError extends Error {
 }
 
 export const MAX_HISTORY_CLIENTS = 10
+/** Only the most recent entries of a history are kept (a real one has ~144). */
+export const MAX_HISTORY_POINTS = 2000
 
 type Obj = Record<string, unknown>
 
@@ -88,7 +90,7 @@ export function normalizeHistory(raw: unknown): HistoryPoint[] {
       allowed: Math.max(0, total - blocked)
     })
   }
-  return points.sort((a, b) => a.timestamp - b.timestamp)
+  return points.sort((a, b) => a.timestamp - b.timestamp).slice(-MAX_HISTORY_POINTS)
 }
 
 export function normalizeTopDomains(raw: unknown): TopDomain[] {
@@ -121,12 +123,13 @@ export function normalizeClientHistory(raw: unknown): ClientHistory {
   const rawHistory = requireArray(root.history, 'history/clients.history')
   const rawClients = isObj(root.clients) ? root.clients : {}
 
-  const buckets: { timestamp: number; data: Obj }[] = []
+  const allBuckets: { timestamp: number; data: Obj }[] = []
   for (const item of rawHistory) {
     if (!isObj(item) || typeof item.timestamp !== 'number') continue
-    buckets.push({ timestamp: item.timestamp, data: isObj(item.data) ? item.data : {} })
+    allBuckets.push({ timestamp: item.timestamp, data: isObj(item.data) ? item.data : {} })
   }
-  buckets.sort((a, b) => a.timestamp - b.timestamp)
+  allBuckets.sort((a, b) => a.timestamp - b.timestamp)
+  const buckets = allBuckets.slice(-MAX_HISTORY_POINTS)
 
   // Rank by the reported total, falling back to the sum over the history.
   const sums = new Map<string, number>()
